@@ -1,0 +1,247 @@
+Write your own web framework
+
+Chris Broadfoot
+Google
+Gophercon 2016
+@broady
+cbro@golang.org
+ 
+These slides
+https://github.com/broady/talks
+
+* Why people use frameworks
+
+- It's common practice for other languages
+- Reduce boilerplate
+- Out-of-the-box features (e.g. logging)
+
+* Common issues
+
+A quick review of Go web frameworks reveal that many:
+
+- are monolithic
+- are over-generalized
+- enforce a model of programming (e.g. MVC)
+- have low code quality
+- introduce a sense of lock-in
+
+* Solution?
+
+* Do it yourself
+
+* But don't do it all yourself
+
+: People have solved all sorts of things for you, including routing, logging (e.g. Apache format), etc.
+
+* Routing
+
+In particular, for method-based routing (GET/POST/etc).
+
+Check out one of these:
+
+- github.com/gorilla/mux
+- github.com/gorilla/pat
+- github.com/julienschmidt/httprouter*
+
+: Only httprouter's `Handle` method uses `net/http`'s types.
+
+* App-specific handlers
+
+    type appHandler func(http.ResponseWriter, *http.Request) error
+
+    func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+        if err := fn(w, r); err != nil {
+            http.Error(w, err.Error(), 500)
+        }
+    }
+
+.link https://blog.golang.org/error-handling-and-go Error handling and Go, July 2011
+
+Really just replaces
+
+    if err != nil {
+        handleError(w, r, err)
+        return
+    }
+
+with
+
+    if err != nil {
+        return err
+    }
+
+: Neat, but really just a demonstration of implementing http.Handler. It doesn't save that much code and makes your handlers always return 500s.
+
+* App-specific handlers
+
+Introduces the concept of returning an app-specific struct type from handlers.
+
+    type appError struct {
+        Error   error
+        Message string
+        Code    int
+    }
+
+    type appHandler func(http.ResponseWriter, *http.Request) *appError
+
+    func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+        if e := fn(w, r); e != nil {
+            c := appengine.NewContext(r)
+            c.Errorf("%v", e.Error)
+            http.Error(w, e.Message, e.Code)
+        }
+    }
+
+.link https://blog.golang.org/error-handling-and-go Error handling and Go, July 2011
+
+: Use a struct to provide other options for the error response.
+
+* Common rendering
+
+: This Response struct is like a union type.
+
+    type appHandler func(http.ResponseWriter, *http.Request) Response
+
+    func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+        result := fn(w, r)
+        // render result
+    }
+
+    func rootHandler(w http.ResponseWriter, r *http.Request) Response {
+        return Response{Message: "ok!"}
+    }
+
+    type Response struct {
+      Code      int
+      Error     error
+      Build     *Build
+      NeedFiles []string
+      Message   string
+    }
+
+
+.link https://github.com/broady/flexdev/blob/master/server/http.go github.com/broady/flexdev
+
+* Repetition
+
+        r.Methods("GET").Path("/books").
+                Handler(appHandler(listHandler))
+        r.Methods("GET").Path("/books/mine").
+                Handler(appHandler(listMineHandler))
+        r.Methods("GET").Path("/books/{id:[0-9]+}").
+                Handler(appHandler(detailHandler))
+        r.Methods("GET").Path("/books/add").
+                Handler(appHandler(addFormHandler))
+        r.Methods("GET").Path("/books/{id:[0-9]+}/edit").
+                Handler(appHandler(editFormHandler))
+
+appHandler appHANDLER APP HANDLER!
+
+.link https://github.com/GoogleCloudPlatform/golang-samples/blob/master/getting-started/bookshelf/app/app.go github.com/GoogleCloudPlatform/golang-samples/getting-started/bookshelf/app
+
+: Need to write appHandler over and over again to have it implement http.Handler
+
+* Move common rendering somewhere else
+
+Then the handlers change from:
+
+    func rootHandler(w http.ResponseWriter, r *http.Request) Response {
+        return Response{Message: "ok!"}
+    }
+
+to:
+
+    func rootHandler(w http.ResponseWriter, r *http.Request) {
+        Response{Message: "ok!"}.WriteTo(w)
+    }
+
+Now our handlers know how to render themselves.
+
+: Our handlers also don't know how to render themselves. They need additional code somewhere else to work.
+: The Response struct that we created before is a nice place for it.
+
+* JSON renderer
+
+    func (r Response) WriteTo(w http.ResponseWriter) {
+      if r.Error != nil {
+        log.Print(r.Error)
+        r.ErrorJSON = r.Error.Error()
+      }
+      b, err := json.Marshal(r)
+      if err != nil {
+        w.WriteHeader(500)
+        log.Printf("Could not marshal JSON for %#v: %v", r, err)
+        fmt.Fprint(w, `{"error":"Could not marshal response JSON. Check server logs."}`)
+        return
+      }
+
+      if r.Code != 0 {
+        w.WriteHeader(r.Code)
+      } else if r.Error != nil {
+        w.WriteHeader(500)
+      }
+      w.Write(b)
+    }
+
+: Here's one that renders the Response struct to JSON.
+
+* Oops!
+
+How about the common code that is executed before rendering?
+
+(commonly known as middleware)
+
+* http.ServeMux delegation
+
+    var adminMux = http.NewServeMux()
+
+    func main() {
+      http.HandleFunc("/", rootHandler)
+
+      http.HandleFunc("/admin/", adminHandler)
+      adminMux.HandleFunc("/admin/build/create", createBuildHandler)
+      // ...
+    }
+
+    func adminHandler(w http.ResponseWriter, r *http.Request) {
+      if err := checkAuth(r); err != nil {
+        // ...
+        return
+      }
+      adminMux.ServeHTTP(w, r)
+    }
+
+.link https://github.com/broady/flexdev/blob/master/server/http.go github.com/broady/flexdev
+
+* Logging
+
+    func (r Response) WriteTo(ctx context.Context, w http.ResponseWriter) {
+      // ...
+      errId := uuid.NewV4().String()
+      http.Error(w, "A problem occurred. Error ID "+errId, r.Code)
+      logger.Logf(ctx, "id:%s msg:%s err:%v", errId, msg, err)
+    }
+
+Trace multiple messages.
+
+    func adminHandler(w http.ResponseWriter, r *http.Request) {
+      traceID := uuid.NewV4().String()
+      r.Context = context.WithValue(r.Context, traceIDKey, traceID)
+      // ...
+      adminMux.ServeHTTP(w, r)
+    }
+
+    func requestLog(ctx context.Context, format string, a ...interface{}) {
+      id, ok := ctx.Value(traceID).(string)
+      // ...
+    }
+
+* Things I've learned
+
+- Make your handlers self-sufficient. This will also aid testing.
+- Separate middleware (e.g. authentication) from rendering.
+- Delegate to a mux (`net/http` or `gorilla/mux`) as the last middleware step.
+- Write just the code that you need.
+- Use single-purpose packages for more complicated things (e.g. routing).
+
+Finally, have fun and experiment!
