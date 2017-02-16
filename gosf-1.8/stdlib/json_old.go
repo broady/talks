@@ -2,45 +2,35 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
+	"os"
 )
 
 func main() {
-	in := []byte(`
-    {
-        "full_name": "Gopher",
-        "age": 7,
-        "social_security": 1234
-    }`)
-
-	var p Person
-	if err := json.Unmarshal(in, &p); err != nil {
-		log.Fatal(err)
+	// START OMIT
+	type Person struct {
+		Name     string
+		AgeYears int
+		SSN      int
 	}
-	fmt.Printf("%+v\n", p)
-}
 
-type Person struct {
-	Name     string
-	AgeYears int
-	SSN      int
-}
+	getPerson := func() Person { // OMIT
+		return Person{Name: "Chris"} // OMIT
+	} // OMIT
+	var person Person = getPerson()
 
-func (p *Person) UnmarshalJSON(data []byte) error {
-	var aux struct {
+	type JSONPerson struct {
 		Name     string `json:"full_name"`
 		AgeYears int    `json:"age"`
-		SSN      int    `json:"social_security"`
+		SSN      int    `json:"-"`
 	}
-	if err := json.Unmarshal(data, &aux); err != nil {
-		return err
+
+	b, err := json.Marshal(JSONPerson(person))
+	// END OMIT
+
+	if err != nil {
+		log.Fatal(err)
 	}
-	*p = Person{
-		Name:     aux.Name,
-		AgeYears: aux.AgeYears,
-		SSN:      aux.SSN,
-	}
-	*p = Person(aux)
-	return nil
+
+	os.Stdout.Write(b)
 }

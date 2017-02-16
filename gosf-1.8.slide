@@ -1,0 +1,249 @@
+Go 1.8
+Things to celebrate and things to look forward towards
+
+Chris Broadfoot
+
+GoSF
+16 February, 2017
+@broady
+cbro@golang.org
+
+* Party!
+
+Go 1.6 is one year old (Happy Birthday!)
+Go 1.7 is already 6 months old!
+
+Go 1.8 was released earlier today!
+[[https://blog.golang.org/go1.8]]
+
+.image gosf-1.8/img/party-gopher.jpg _ 300
+
+* What's new?
+
+Many changes to:
+
+- The language
+- Ports
+- The standard library
+- The runtime
+- Tooling
+- The Community
+
+* Performance
+
+* SSA everywhere!
+
+Introduced in Go 1.7 for 64-bit x86. Now used everywhere.
+
+The SSA backend:
+
+- generates more compact and efficient code
+- is a better platform for optimizations
+
+For 32-bit ARM systems this means 20-30% speed up!
+
+For others (where SSA was used already) gains are 0-10%.
+
+* Compilation
+
+About 15% faster. More speedups coming.
+
+.image gosf-1.8/img/benchmark.png _ 800
+
+* Garbage collection
+
+* go 1.5
+
+.image gosf-1.8/img/gct1.png _ 900
+
+* go 1.6
+
+.image gosf-1.8/img/gct2.png _ 900
+
+* go 1.7
+
+.image gosf-1.8/img/gct4.png _ 900
+
+* go 1.8 (beta 1)
+
+.image gosf-1.8/img/gct5.png _ 700
+
+* go 1.8 (beta 1) CPU
+
+.image gosf-1.8/img/gctcpu.png _ 800
+
+* Defer
+
+Overhead of deferred function calls has been halved.
+
+    name         old time/op  new time/op  delta
+    Defer-4       101ns ± 1%    66ns ± 0%  -34.73%  (p=0.000 n=20+20)
+    Defer10-4    93.2ns ± 1%  62.5ns ± 8%  -33.02%  (p=0.000 n=20+20)
+    DeferMany-4   148ns ± 3%   131ns ± 3%  -11.42%  (p=0.000 n=19+19)
+
+.image gosf-1.8/img/defer.png _ 500
+
+* Cgo
+
+Overhead of cgo calls has been halved, too.
+
+    name       old time/op  new time/op  delta
+    CgoNoop-8  93.5ns ± 0%  51.1ns ± 1%  -45.34%  (p=0.016 n=4+5)
+
+.image gosf-1.8/img/cgo.png _ 500
+
+Source: [[https://dave.cheney.net/2016/11/19/go-1-8-toolchain-improvements][dave.cheney.net]]
+
+* Changes to the language
+
+* Struct conversion
+
+Struct tags are now ignored when doing type conversion on structs.
+The structs still need to have the same fields in the same order.
+
+.code gosf-1.8/stdlib/json_old.go /START OMIT/,/END OMIT/
+
+* Ports
+
+* Ports to other platforms
+
+32-bit MIPS
+
+- big-endian (`linux/mips`)
+- little-endian (`linux/mipsle`) - requires Floating Point Unit
+
+Go on DragonFly BSD now requires DragonFly 4.4.4+.
+
+Go on OpenBSD now requires OpenBSD 5.9+.
+
+Plan 9 has an improved networking stack.
+
+Go 1.8 supports OS X 10.8+. Likely last time we support 10.8.
+
+* Tools
+
+* Bug
+
+Easier way to create bugs including all relevant information.
+
+  go bug
+
+.image gosf-1.8/img/bug.png
+
+* Default GOPATH
+
+Yay!
+
+When `GOPATH` is not defined, the tool will use:
+
+- `$HOME/go` on Unix
+- `%USERPROFILE%\go` on Windows
+
+* Fix
+
+Fixes the import path `"golang.org/x/net/context"` to `"context"`.
+
+.code gosf-1.8/tools/gofix.go
+
+Simply run the command below:
+
+.play gosf-1.8/tools/gofix.sh /go tool/
+
+Drop the `-diff` flag to rewrite the files.
+
+* Vet
+
+"Vet is stricter in some ways and looser where it previously caused false positives."
+
+Example of extra check:
+
+.play gosf-1.8/tools/govet.go /func main/,
+
+`govet` detects the problem:
+
+    go vet main.go
+
+* Runtime
+
+* Mutex Contention Profiling
+
+Profile your benchmarks and the contention on your mutexes:
+
+    go test bench=. -mutexprofile=mutex.out
+
+Analyze:
+
+    go tool pprof mutex.test mutex.out
+
+Alternatively, activate contention profiling with this new function:
+
+    runtime.SetMutexProfileFraction
+
+_Note_: For now, `sync.RWMutex` is not profiled.
+
+* Detection of concurrent map accesses
+
+Introduced in 1.6, further improved.
+
+.play gosf-1.8/runtime/mapcrash.go /const/,/Wait\(\)/
+
+Outputs:
+
+	fatal error: concurrent map read and map write
+	fatal error: concurrent map writes
+
+* Changes to the standard library
+
+* Sorting
+
+`sort.Slice` allows you to sort without implementing `sort.Interface`.
+
+.code gosf-1.8/stdlib/sort.go /START OMIT/,/END OMIT/
+
+Also new `SliceStable` and `SliceIsSorted`.
+
+* HTTP shutdown
+
+Added `Shutdown` method to `http.Server`.
+
+Example:
+
+Call `Shutdown` when a signal is received:
+
+.code gosf-1.8/stdlib/shutdown.go /subscribe/,/}\(\)/
+
+* HTTP/2 Push
+
+Eliminate round-trips by preemptively sending responses to the client.
+
+.code gosf-1.8/stdlib/http2/http2.go /func rootHandler/,/^}/
+
+* More context support
+
+Since Go 1.7:
+
+- net
+- net/http
+- os/exec
+
+Since Go 1.8:
+
+- http.Server.Shutdown
+- database/sql
+- net.Resolver
+
+* A couple more changes too
+
+.image gosf-1.8/img/more.png _ 1000
+.caption [[https://golang.org/doc/go1.8][Go 1.8 release notes]]
+
+* What's next?
+
+- Type aliases
+- Improved tool speed (compiler, linker)
+- More compiler optimizations
+- More work on plugins
+
+* Slides
+
+The slides are available at [[http://talks.godoc.org/github.com/broady/talks/gosf-1.8.slide]]
