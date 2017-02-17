@@ -168,7 +168,7 @@ Example of extra check:
 
 Profile your benchmarks and the contention on your mutexes:
 
-    go test bench=. -mutexprofile=mutex.out
+    go test -bench=. -mutexprofile=mutex.out
 
 Analyze:
 
