@@ -106,7 +106,7 @@ About 15% faster. More speedups coming.
 
 * go 1.8 CPU
 
-.image gosf-1.8/img/gctcpu.png _ 680
+.image gosf-1.8/img/cpu.png _ 680
 
 * Defer
 
