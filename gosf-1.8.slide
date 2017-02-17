@@ -29,6 +29,42 @@ Many changes to:
 - The runtime
 - The standard library
 
+* But before we talk about 1.8...
+
+The CoC [[https://go-review.googlesource.com/#/c/37014/][was updated]].
+
+    This change removes the punitive language and anonymous reporting mechanism
+    from the Code of Conduct document. Read on for the rationale.
+
+    More than a year has passed since the Go Code of Conduct was introduced.
+    In that time, there have been a small number (<30) of reports to the Working Group.
+    Some reports we handled well, with positive outcomes for all involved.
+    A few reports we handled badly, resulting in hurt feelings and a bad
+    experience for all involved.
+
+    On reflection, the reports that had positive outcomes were ones where the
+    Working Group took the role of advisor/facilitator, listening to complaints and
+    providing suggestions and advice to the parties involved.
+    The reports that had negative outcomes were ones where the subject of the
+    report felt threatened by the Working Group and Code of Conduct.
+
+    After some discussion among the Working Group, we saw that we are most
+    effective as facilitators, rather than disciplinarians. The various Go spaces
+    already have moderators; this change to the CoC acknowledges their authority
+    and places the group in a purely advisory role. If an incident is
+    reported to the group we may provide information to or make a
+    suggestion the moderators, but the Working Group need not (and should not) have
+    any authority to take disciplinary action.
+
+    In short, we want it to be clear that the Working Group are here to help
+    resolve conflict, period.
+
+    The second change made here is the removal of the anonymous reporting mechanism.
+    To date, the quality of anonymous reports has been low, and with no way to
+    reach out to the reporter for more information there is often very little we
+    can do in response. Removing this one-way reporting mechanism strengthens the
+    message that the Working Group are here to facilitate a constructive dialogue.
+
 * Performance
 
 * SSA everywhere!
@@ -70,11 +106,11 @@ About 15% faster. More speedups coming.
 
 * go 1.8 CPU
 
-.image gosf-1.8/img/gctcpu.png _ 800
+.image gosf-1.8/img/gctcpu.png _ 680
 
 * Defer
 
-Overhead of deferred function calls has been halved.
+Overhead of deferred function calls has been almost halved.
 
     name         old time/op  new time/op  delta
     Defer-4       101ns ± 1%    66ns ± 0%  -34.73%  (p=0.000 n=20+20)
@@ -175,9 +211,11 @@ Analyze:
 
     go tool pprof mutex.test mutex.out
 
-Alternatively, activate contention profiling with this new function:
+Outside of tests, set the sampling rate:
 
-    runtime.SetMutexProfileFraction
+    runtime.SetMutexProfileFraction(10)
+
+Use the `runtime/pprof` and `net/http/pprof` packages to retrieve the profiles.
 
 _Note_: For now, `sync.RWMutex` is not profiled.
 
@@ -206,9 +244,7 @@ Also new `SliceStable` and `SliceIsSorted`.
 
 Added `Shutdown` method to `http.Server`.
 
-Example:
-
-Call `Shutdown` when a signal is received:
+Example, clean shutdown when SIGINT is received:
 
 .code gosf-1.8/stdlib/shutdown.go /subscribe/,/}\(\)/
 

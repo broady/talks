@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"time"
 )
 
 func main() {
@@ -18,7 +19,8 @@ func main() {
 	go func() { // HL
 		<-quit // HL
 		log.Println("Shutting down server...")
-		if err := srv.Shutdown(context.Background()); err != nil { // HL
+		ctx, _ := context.WithTimeout(context.Background(), 10*time.Second) // HL
+		if err := srv.Shutdown(ctx); err != nil {                           // HL
 			log.Fatalf("could not shutdown: %v", err)
 		}
 	}()
