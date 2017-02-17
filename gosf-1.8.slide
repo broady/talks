@@ -22,11 +22,12 @@ Go 1.8 was released earlier today!
 
 Many changes to:
 
-- The language
-- Ports
-- The standard library
-- The runtime
+- Performance
+- Ports and platforms
 - Tooling
+- The language
+- The runtime
+- The standard library
 
 * Performance
 
@@ -67,7 +68,7 @@ About 15% faster. More speedups coming.
 
 .image gosf-1.8/img/gct5.png _ 700
 
-* go 1.8 (beta 1) CPU
+* go 1.8 CPU
 
 .image gosf-1.8/img/gctcpu.png _ 800
 
